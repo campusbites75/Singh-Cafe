@@ -1,27 +1,51 @@
-import React from 'react'
-import  './Sidebar.css'
-import { assets } from '../../assets/assets'
-import { NavLink } from 'react-router-dom'
+import React from 'react';
+import './Sidebar.css';
+import { assets } from '../../assets/assets';
+import { NavLink } from 'react-router-dom';
 
 const Sidebar = () => {
   return (
-    <div className='sidebar'>
-      <div className="sidebar-options">
-        <NavLink to='/add' className="sidebar-option">
-            <img src={assets.add_icon} alt="" />
-            <p>Add Items</p>
-        </NavLink>
-        <NavLink to='/list' className="sidebar-option">
-            <img src={assets.order_icon} alt="" />
-            <p>List Items</p>
-        </NavLink>
-        <NavLink to='/orders' className="sidebar-option">
-            <img src={assets.order_icon} alt="" />
-            <p>Orders</p>
-        </NavLink>
-      </div>
-    </div>
-  )
-}
+    <aside className="sidebar">
+      <div className="sidebar-inner">
 
-export default Sidebar
+        <NavLink to='/add' className="sidebar-link">
+          <img src={assets.add_icon} alt="" />
+          <span>Add Items</span>
+        </NavLink>
+
+        <NavLink to='/list' className="sidebar-link">
+          <img src={assets.order_icon} alt="" />
+          <span>List Items</span>
+        </NavLink>
+
+        <NavLink to='/orders' className="sidebar-link">
+          <img src={assets.order_icon} alt="" />
+          <span>Orders</span>
+        </NavLink>
+
+        <NavLink to='/kitchen' className="sidebar-link">
+          <img src={assets.order_icon} alt="" />
+          <span>Kitchen Screen</span>
+        </NavLink>
+
+        <NavLink to='/admin/pos' className="sidebar-link">
+          <img src={assets.order_icon} alt="" />
+          <span>POS</span>
+        </NavLink>
+
+        <NavLink to='/monthly-report' className="sidebar-link">
+          <img src={assets.order_icon} alt="" />
+          <span>Monthly Report</span>
+        </NavLink>
+
+        <NavLink to='/settings' className="sidebar-link">
+          <img src={assets.settings_icon || assets.order_icon} alt="" />
+          <span>Settings</span>
+        </NavLink>
+
+      </div>
+    </aside>
+  );
+};
+
+export default Sidebar;

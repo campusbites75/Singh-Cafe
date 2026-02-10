@@ -1,72 +1,83 @@
-import React, { useContext, useState } from 'react'
-import './LoginPopup.css'
-import { assets } from '../../assets/assets'
-import { StoreContext } from '../../Context/StoreContext'
-import axios from 'axios'
-import { toast } from 'react-toastify'
+import React, { useContext, useEffect } from "react";
+import "./LoginPopup.css";
+import { assets } from "../../assets/assets";
+import { StoreContext } from "../../Context/StoreContext";
+import axios from "axios";
+import { toast } from "react-toastify";
 
 const LoginPopup = ({ setShowLogin }) => {
+  const { setToken, url, loadCartData } = useContext(StoreContext);
 
-    const { setToken, url,loadCartData } = useContext(StoreContext)
-    const [currState, setCurrState] = useState("Sign Up");
+  // HANDLE GOOGLE RESPONSE
+  const handleGoogleResponse = async (response) => {
+    const googleToken = response.credential;
 
-    const [data, setData] = useState({
-        name: "",
-        email: "",
-        password: ""
-    })
+    try {
+      const res = await axios.post(`${url}/api/user/google-login`, {
+        token: googleToken,
+      });
 
-    const onChangeHandler = (event) => {
-        const name = event.target.name
-        const value = event.target.value
-        setData(data => ({ ...data, [name]: value }))
+      if (res.data.success) {
+        setToken(res.data.token);
+        localStorage.setItem("token", res.data.token);
+
+        // Load cart automatically
+        loadCartData({ token: res.data.token });
+
+        setShowLogin(false);
+      } else {
+        toast.error(res.data.message);
+      }
+    } catch (err) {
+      toast.error("Google login failed");
     }
+  };
 
-    const onLogin = async (e) => {
-        e.preventDefault()
+  // INITIALIZE GOOGLE LOGIN BUTTON
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (window.google) {
+        window.google.accounts.id.initialize({
+          client_id:
+            "800915697216-e1melaunt3rna55vmfa18e0v50e2ta5m.apps.googleusercontent.com",
+          callback: handleGoogleResponse,
+        });
 
-        let new_url = url;
-        if (currState === "Login") {
-            new_url += "/api/user/login";
-        }
-        else {
-            new_url += "/api/user/register"
-        }
-        const response = await axios.post(new_url, data);
-        if (response.data.success) {
-            setToken(response.data.token)
-            localStorage.setItem("token", response.data.token)
-            loadCartData({token:response.data.token})
-            setShowLogin(false)
-        }
-        else {
-            toast.error(response.data.message)
-        }
-    }
+        window.google.accounts.id.renderButton(
+          document.getElementById("google-login"),
+          {
+            theme: "outline",
+            size: "large",
+            width: 300, // must be number
+          }
+        );
+      }
+    }, 300); // small delay ensures element exists
 
-    return (
-        <div className='login-popup'>
-            <form onSubmit={onLogin} className="login-popup-container">
-                <div className="login-popup-title">
-                    <h2>{currState}</h2> <img onClick={() => setShowLogin(false)} src={assets.cross_icon} alt="" />
-                </div>
-                <div className="login-popup-inputs">
-                    {currState === "Sign Up" ? <input name='name' onChange={onChangeHandler} value={data.name} type="text" placeholder='Your name' required /> : <></>}
-                    <input name='email' onChange={onChangeHandler} value={data.email} type="email" placeholder='Your email' />
-                    <input name='password' onChange={onChangeHandler} value={data.password} type="password" placeholder='Password' required />
-                </div>
-                <button>{currState === "Login" ? "Login" : "Create account"}</button>
-                <div className="login-popup-condition">
-                    <input type="checkbox" name="" id="" required/>
-                    <p>By continuing, i agree to the terms of use & privacy policy.</p>
-                </div>
-                {currState === "Login"
-                    ? <p>Create a new account? <span onClick={() => setCurrState('Sign Up')}>Click here</span></p>
-                    : <p>Already have an account? <span onClick={() => setCurrState('Login')}>Login here</span></p>
-                }
-            </form>
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <div className="login-popup">
+      <div className="login-popup-container">
+        <div className="login-popup-title">
+          <h2>Sign in</h2>
+          <img
+            onClick={() => setShowLogin(false)}
+            src={assets.cross_icon}
+            alt=""
+          />
         </div>
-    )
-}
 
-export default LoginPopup
+        {/* GOOGLE LOGIN BUTTON */}
+        <div
+          id="google-login"
+          style={{ marginTop: "10px", display: "flex", justifyContent: "center" }}
+        ></div>
+
+      </div>
+    </div>
+  );
+};
+
+export default LoginPopup;

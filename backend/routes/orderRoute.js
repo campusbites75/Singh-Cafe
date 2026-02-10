@@ -1,14 +1,34 @@
-import express from 'express';
-import authMiddleware from '../middleware/auth.js';
-import { listOrders, placeOrder,updateStatus,userOrders, verifyOrder, placeOrderCod } from '../controllers/orderController.js';
+import express from "express";
+import authMiddleware from "../middleware/auth.js";
+import {
+  listOrders,
+  placeOrder,
+  placeOrderCod,
+  userOrders,
+  verifyOrder,
+  acceptOrder,
+  rejectOrder,
+  kitchenOrders,
+  markPrepared,
+  markDelivered,
+  getBillByOrderId
+} from "../controllers/orderController.js";
 
-const orderRouter = express.Router();
+const router = express.Router();
 
-orderRouter.get("/list",listOrders);
-orderRouter.post("/userorders",authMiddleware,userOrders);
-orderRouter.post("/place",authMiddleware,placeOrder);
-orderRouter.post("/status",updateStatus);
-orderRouter.post("/verify",verifyOrder);
-orderRouter.post("/placecod",authMiddleware,placeOrderCod);
+router.get("/list", listOrders);
+router.post("/place", authMiddleware, placeOrder);
+router.post("/placecod", authMiddleware, placeOrderCod);
+router.post("/userorders", authMiddleware, userOrders);
+router.post("/verify", verifyOrder);
 
-export default orderRouter;
+router.post("/accept", acceptOrder);
+router.post("/reject", rejectOrder);
+router.get("/kitchen", kitchenOrders);
+router.post("/prepared", markPrepared);
+router.post("/delivered", markDelivered);
+
+/* 🔥 BILL ROUTE (NEW) */
+router.get("/bill/:orderId", authMiddleware, getBillByOrderId);
+
+export default router;

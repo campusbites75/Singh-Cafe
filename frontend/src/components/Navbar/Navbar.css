@@ -28,11 +28,12 @@
     gap: 40px;
 }
 
-.navbar-search-icon{
-position: relative;
+/* Cart icon */
+.navbar-search-icon {
+    position: relative;
 }
 
-.navbar-search-icon .dot{
+.navbar-search-icon .dot {
     position: absolute;
     min-width: 10px;
     min-height: 10px;
@@ -42,6 +43,7 @@ position: relative;
     right: -8px;
 }
 
+/* Buttons */
 .navbar-right button {
     background: transparent;
     font-size: 16px;
@@ -57,29 +59,34 @@ position: relative;
     background: #fff4f2;
 }
 
-.navbar-profile{
+/* Profile */
+.navbar-profile {
     position: relative;
-
 }
-.navbar-profile-dropdown{
+
+.navbar-profile-dropdown {
     position: absolute;
     display: none;
     right: 0;
     z-index: 1;
 }
-.navbar-profile-dropdown li{
+
+.navbar-profile-dropdown li {
     display: flex;
     align-items: center;
     gap: 10px;
     cursor: pointer;
 }
-.navbar-profile-dropdown img{
+
+.navbar-profile-dropdown img {
     width: 20px;
 }
-.navbar-profile-dropdown li:hover{
+
+.navbar-profile-dropdown li:hover {
     color: #FF4C24;
 }
-.navbar-profile:hover .navbar-profile-dropdown{
+
+.navbar-profile:hover .navbar-profile-dropdown {
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -90,11 +97,14 @@ position: relative;
     outline: 2px solid white;
     list-style: none;
 }
-.navbar-profile hr{
+
+.navbar-profile hr {
     background-color: gray;
     height: 1px;
     border: none;
 }
+
+/* Responsive */
 @media (max-width:1050px) {
     .navbar .logo {
         width: 140px;
