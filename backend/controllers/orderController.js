@@ -4,7 +4,7 @@ import foodModel from "../models/foodModel.js";
 import crypto from "crypto";
 
 const currency = "inr";
-const frontend_URL = "http://localhost:5173";
+const frontend_URL = "https://campusbitessinghcafe.netlify.app";
 
 /* ================= VALIDATE ITEMS ================= */
 const validateItems = (items) => {
