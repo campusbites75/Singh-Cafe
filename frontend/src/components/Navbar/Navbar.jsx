@@ -173,7 +173,7 @@ const Navbar = ({ setShowLogin }) => {
               className="admin-enter-btn"
               onClick={() => {
                 if (adminKey === "SRSINGH26") {
-                  window.location.href = "http://localhost:5174/";
+                  window.location.href = "https://campusbitessinghadmin.netlify.app";
                 } else {
                   alert("Invalid Admin Code");
                 }
