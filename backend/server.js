@@ -49,14 +49,22 @@ const PORT = process.env.PORT || 5000;
 // CORS
 // =====================================
 
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://127.0.0.1:5500",
+  "https://69cbfdd5eaeffa0008188785--campusbitessinghcafe.netlify.app"
+];
+
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "http://127.0.0.1:5500",
-      "https://singh-cafe.onrender.com",
-    ],
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   })
 );
