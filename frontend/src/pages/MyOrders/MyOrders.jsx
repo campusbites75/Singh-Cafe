@@ -10,23 +10,32 @@ const MyOrders = () => {
   const [bill, setBill] = useState(null);
   const { url, token, currency } = useContext(StoreContext);
 
-  // Fetch user orders
+  // ✅ Fetch user orders (FIXED)
   const fetchOrders = async () => {
     try {
-      const response = await axios.post(
+      const response = await axios.get(
         `${url}/api/order/userorders`,
-        {},
-        { headers: { token } }
+        {
+          headers: {
+            Authorization: `Bearer ${token}` // ✅ FIXED HEADER
+          }
+        }
       );
 
-      // latest orders first
-      const sorted = response.data.data.sort(
-        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-      );
+      console.log("ORDERS RESPONSE:", response.data); // 🔍 DEBUG
 
-      setData(sorted);
+      if (response.data.success && response.data.data) {
+        const sorted = response.data.data.sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+        );
+        setData(sorted);
+      } else {
+        console.log("No orders found");
+        setData([]);
+      }
+
     } catch (err) {
-      console.error("ORDER FETCH ERROR:", err);
+      console.error("ORDER FETCH ERROR:", err.response?.data || err.message);
     }
   };
 
@@ -36,7 +45,7 @@ const MyOrders = () => {
     }
   }, [token]);
 
-  // Fetch bill (ONLY for delivered orders)
+  // ✅ Fetch bill (FIXED HEADERS)
   const viewBill = async (order) => {
     if (order.status !== "delivered") {
       alert("Bill is available only for delivered orders.");
@@ -46,7 +55,11 @@ const MyOrders = () => {
     try {
       const res = await axios.get(
         `${url}/api/order/bill/${order._id}`,
-        { headers: { token } }
+        {
+          headers: {
+            Authorization: `Bearer ${token}` // ✅ FIXED
+          }
+        }
       );
 
       if (res.data.success && res.data.bill) {
@@ -54,6 +67,7 @@ const MyOrders = () => {
       } else {
         alert("Bill not found for this order.");
       }
+
     } catch (err) {
       console.error("BILL FETCH ERROR:", err.response?.data || err.message);
       alert("Unable to load bill. Please try again later.");
@@ -69,6 +83,10 @@ const MyOrders = () => {
           <div key={index} className='my-orders-order'>
 
             <img src={assets.parcel_icon} alt="order" />
+
+            <p className="order-id">
+              <b>Order ID:</b> {order.orderNumber}
+            </p>
 
             <p>
               {order.items.map((item, i) =>
@@ -102,7 +120,14 @@ const MyOrders = () => {
         ))}
       </div>
 
-      {/* BILL MODAL */}
+      {/* ✅ EMPTY STATE FIX */}
+      {data.length === 0 && (
+        <p style={{ textAlign: "center", marginTop: "20px" }}>
+          No orders found 😕
+        </p>
+      )}
+
+      {/* ✅ BILL MODAL */}
       {bill && (
         <div className="bill-modal">
           <div className="bill-box">

@@ -301,3 +301,32 @@
     display: none !important;
   }
 }
+/* ======================
+   Packed / Unpacked SALES
+====================== */
+
+.Packed-box {
+  background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+  border: 1px solid #22c55e;
+}
+
+.Packed-box h4 {
+  color: #166534;
+}
+
+.Packed-box p {
+  color: #14532d;
+}
+
+.Unpacked-box {
+  background: linear-gradient(135deg, #fee2e2, #fecaca);
+  border: 1px solid #ef4444;
+}
+
+.Unpacked-box h4 {
+  color: #991b1b;
+}
+
+.Unpacked-box p {
+  color: #7f1d1d;
+}

@@ -2,49 +2,42 @@ import mongoose from "mongoose";
 
 const orderSchema = new mongoose.Schema(
   {
-    // ✅ Allow guest orders (userId not required)
-    userId: {
-      type: String,
-      required: false,
-      default: null,
-    },
-
-    items: {
-      type: Array,
-      required: true,
-    },
-
-    amount: {
-      type: Number,
-      required: true,
-    },
-
-    address: {
-      type: Object,
-      required: true,
-    },
-
-    // Optional delivery fee support
-    deliveryFee: {
-      type: Number,
-      default: 0,
-    },
-
-    // Order status system
-    status: {
-      type: String,
-      default: "pending",
-    },
-
-    payment: {
-      type: Boolean,
-      default: false,
-    },
+    orderNumber: { type: String, required: true, unique: true },
+    userId: { type: String, default: null },
+    items: [
+      {
+        _id: String,
+        name: String,
+        price: Number,
+        quantity: Number,
+        productType: {
+          type: String,
+          enum: ["Packed", "Unpacked"],
+          required: true,
+          default: "Unpacked"
+        }
+      }
+    ],
+    amount: { type: Number, required: true },
+    discount: { type: Number, default: 0 },
+    couponCode: { type: String, default: null },
+    address: { type: Object, default: {} },
+    deliveryFee: { type: Number, default: 0 },
+    
+    // 🔥 FIXED: Add proper status fields
+    status: { type: String, default: "PENDING", enum: ["PENDING", "PAID", "CONFIRMED", "PREPARED", "DELIVERED", "CANCELLED"] },
+    paymentStatus: { type: String, default: "PENDING", enum: ["PENDING", "PAID", "CONFIRMED", "FAILED"] },
+    payment: { type: Boolean, default: false }, // Keep for backward compat
+    
+    paymentMethod: { type: String, default: "ONLINE" },
+    
+    // 🔥 Razorpay fields
+    razorpayOrderId: String,
+    razorpayPaymentId: String,
+    razorpaySignature: String
   },
   { timestamps: true }
 );
 
-const orderModel =
-  mongoose.models.order || mongoose.model("order", orderSchema);
-
-export default orderModel;
+const Order = mongoose.models.Order || mongoose.model("Order", orderSchema);
+export default Order;

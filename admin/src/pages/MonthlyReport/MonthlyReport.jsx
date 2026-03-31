@@ -11,7 +11,6 @@ const MonthlyReport = () => {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // View Modal
   const [showModal, setShowModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
 
@@ -38,9 +37,35 @@ const MonthlyReport = () => {
   };
 
   const orders = report?.orders || [];
+
   const totalOrders = orders.length;
   const delivered = orders.filter(o => o.status === "delivered").length;
   const rejected = orders.filter(o => o.status === "rejected").length;
+
+  // ✅ FIXED: Only count delivered orders
+  let PackedSales = 0;
+  let UnpackedSales = 0;
+
+  const validOrders = orders.filter(
+    order => order.status?.toLowerCase() === "delivered"
+  );
+
+  validOrders.forEach(order => {
+    order.items?.forEach(item => {
+      const amount = (item.price || 0) * (item.quantity || 1);
+
+      const type = (item.productType || "")
+        .toString()
+        .trim()
+        .toLowerCase();
+
+      if (type === "packed") {
+        PackedSales += amount;
+      } else {
+        UnpackedSales += amount;
+      }
+    });
+  });
 
   const openView = (order) => {
     setSelectedOrder(order);
@@ -54,7 +79,6 @@ const MonthlyReport = () => {
 
   return (
     <div className="mr-page">
-      {/* HEADER */}
       <div className="mr-header no-print">
         <h2 className="mr-title">📊 Sales Report</h2>
 
@@ -65,17 +89,9 @@ const MonthlyReport = () => {
           </select>
 
           {mode === "monthly" ? (
-            <input
-              type="month"
-              value={date}
-              onChange={e => setDate(e.target.value)}
-            />
+            <input type="month" value={date} onChange={e => setDate(e.target.value)} />
           ) : (
-            <input
-              type="date"
-              value={date}
-              onChange={e => setDate(e.target.value)}
-            />
+            <input type="date" value={date} onChange={e => setDate(e.target.value)} />
           )}
 
           <button onClick={fetchReport} disabled={loading}>
@@ -119,6 +135,19 @@ const MonthlyReport = () => {
             </div>
           </div>
 
+          {/* SALES BREAKDOWN */}
+          <h3 className="mr-section-title">Sales Breakdown</h3>
+          <div className="mr-grid">
+            <div className="mr-box Packed-box">
+              <h4>📦 Packed Sales</h4>
+              <p>₹{PackedSales}</p>
+            </div>
+            <div className="mr-box Unpacked-box">
+              <h4>⚖️ Unpacked Sales</h4>
+              <p>₹{UnpackedSales}</p>
+            </div>
+          </div>
+
           {/* TOP ITEMS */}
           <h3 className="mr-section-title">Top Selling Items</h3>
           <ul className="mr-list">
@@ -134,7 +163,7 @@ const MonthlyReport = () => {
             )}
           </ul>
 
-          {/* ALL ORDERS */}
+          {/* ORDERS TABLE */}
           <h3 className="mr-section-title">📋 All Orders ({orders.length})</h3>
           <div className="mr-orders-table">
             <table>
@@ -152,20 +181,16 @@ const MonthlyReport = () => {
                 {orders.map(order => (
                   <tr key={order._id}>
                     <td>{order._id.slice(-6)}</td>
-                    <td>{order.paymentMethod ? "POS" : "Online"}</td>
+                    <td>{order.paymentMethod === "POS" ? "POS" : "Online"}</td>
                     <td className={`status ${order.status}`}>
                       {order.status}
                     </td>
                     <td>₹{order.totalAmount || order.amount || 0}</td>
                     <td>{new Date(order.createdAt).toLocaleDateString()}</td>
                     <td>
-                      <button
-  className="btn-view"
-  onClick={() => openView(order)}
->
-  👁 View
-</button>
-
+                      <button className="btn-view" onClick={() => openView(order)}>
+                        👁 View
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -179,7 +204,7 @@ const MonthlyReport = () => {
         </div>
       )}
 
-      {/* VIEW MODAL */}
+      {/* MODAL */}
       {showModal && selectedOrder && (
         <div className="modal-overlay no-print">
           <div className="modal fancy-modal">
@@ -191,64 +216,37 @@ const MonthlyReport = () => {
             <div className="modal-body" style={{ maxHeight: "70vh", overflowY: "auto" }}>
               <p><strong>Order ID:</strong> {selectedOrder._id}</p>
               <p><strong>Status:</strong> {selectedOrder.status}</p>
-              <p>
-                <strong>Type:</strong>{" "}
-                {selectedOrder.paymentMethod ? "POS Order" : "Online Order"}
-              </p>
-              <p>
-                <strong>Date:</strong>{" "}
-                {new Date(selectedOrder.createdAt).toLocaleString()}
-              </p>
-              <p>
-                <strong>Amount:</strong> ₹
-                {selectedOrder.totalAmount || selectedOrder.amount || 0}
-              </p>
-
-              <hr />
-
-              <h4>👤 Customer</h4>
-              <p>
-                <strong>Name:</strong>{" "}
-                {selectedOrder.customerName ||
-                  selectedOrder.address?.fullName ||
-                  "Walk-in"}
-              </p>
-              <p>
-                <strong>Phone:</strong>{" "}
-                {selectedOrder.customerPhone ||
-                  selectedOrder.address?.phone ||
-                  "—"}
-              </p>
-
-              {selectedOrder.address && (
-                <>
-                  <hr />
-                  <h4>📍 Delivery</h4>
-                  <p><strong>Block:</strong> {selectedOrder.address.block}</p>
-                  <p><strong>Room:</strong> {selectedOrder.address.roomNo}</p>
-                  <p><strong>Break Time:</strong> {selectedOrder.address.breakTime}</p>
-                  <p><strong>User Type:</strong> {selectedOrder.address.userType}</p>
-                </>
-              )}
 
               <hr />
               <h4>🍽 Items</h4>
               <ul>
                 {selectedOrder.items.map((i, idx) => (
                   <li key={idx}>
-                    {i.name} × {i.quantity}
+                    {i.name} × {i.quantity} (
+                    <span
+                      style={{
+                        marginLeft: "6px",
+                        padding: "2px 6px",
+                        borderRadius: "5px",
+                        fontSize: "11px",
+                        background:
+                          (i.productType || "").toLowerCase() === "packed"
+                            ? "#d1fae5"
+                            : "#e5e7eb",
+                        color:
+                          (i.productType || "").toLowerCase() === "packed"
+                            ? "#065f46"
+                            : "#374151",
+                      }}
+                    >
+                      {(i.productType || "").toLowerCase() === "packed"
+                        ? "Packed"
+                        : "Unpacked"}
+                    </span>
+                    )
                   </li>
                 ))}
               </ul>
-
-              <div className="instructions-box">
-                <strong>⚠ Special Instructions</strong>
-                <p>
-                  {selectedOrder.specialInstructions ||
-                    selectedOrder.address?.specialInstructions ||
-                    "None"}
-                </p>
-              </div>
             </div>
           </div>
         </div>

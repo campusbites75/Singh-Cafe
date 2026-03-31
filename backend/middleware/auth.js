@@ -4,7 +4,7 @@ const authMiddleware = (req, res, next) => {
   try {
     let token = null;
 
-    // 1️⃣ Check Authorization header (Bearer token)
+    // 1️⃣ Get token from Authorization header
     if (req.headers.authorization) {
       const authHeader = req.headers.authorization;
 
@@ -13,23 +13,29 @@ const authMiddleware = (req, res, next) => {
       }
     }
 
-    // 2️⃣ Fallback to custom token header
+    // 2️⃣ Fallback (optional)
     if (!token && req.headers.token) {
       token = req.headers.token;
     }
 
-    // 3️⃣ If still no token → guest user allowed
+    // 3️⃣ If no token → block
     if (!token) {
-      req.body.userId = null;
-      return next();
+      return res.status(401).json({
+        success: false,
+        message: "Not Authorized, Login Again",
+      });
     }
 
-    // 4️⃣ Verify token safely
+    // 4️⃣ Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    req.body.userId = decoded.id;
+    // 5️⃣ Attach user to request
+    req.user = {
+      id: decoded.id,
+    };
 
     next();
+
   } catch (error) {
     return res.status(401).json({
       success: false,

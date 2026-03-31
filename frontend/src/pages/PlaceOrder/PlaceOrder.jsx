@@ -1,12 +1,19 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState, useCallback, useRef } from 'react';
 import './PlaceOrder.css';
 import { StoreContext } from '../../Context/StoreContext';
 import { assets } from '../../assets/assets';
 import { useNavigate } from 'react-router-dom';
 import axios from "axios";
 
-// ============ Razorpay Payment Handler ============
-const handlePayment = async (amount, address, items, token) => {
+/* ================= RAZORPAY PAYMENT - FIXED ✅ ================= */
+const handlePayment = async (
+  amount,
+  address,
+  items,
+  token,
+  setPaymentStatus,
+  onSuccess  // ✅ callback for orderId
+) => {
   try {
     const { data } = await axios.post(
       "http://localhost:5000/api/payment/create-order",
@@ -15,16 +22,68 @@ const handlePayment = async (amount, address, items, token) => {
     );
 
     const options = {
-      key: "rzp_test_RgtrTPFx3l7yG9",
+      key: import.meta.env.VITE_RAZORPAY_KEY,
       amount: data.amount,
       currency: data.currency,
       name: "Campus Bites",
-      description: "Food Order Payment",
+      description: "Secure Checkout",
+      image: "/logo.png",
       order_id: data.id,
-      handler: function () {
-        alert("Payment Successful!");
+      
+      handler: async function (response) {
+        setPaymentStatus('verifying');
+
+        try {
+          const verify = await axios.post(
+            "http://localhost:5000/api/payment/verify-payment",
+            {
+              ...response,
+              items,
+              address,
+              amount
+            }
+          );
+
+          if (verify.data.success) {
+            onSuccess(verify.data.orderId); // ✅ Pass orderId to callback
+          } else {
+            setPaymentStatus('failed');
+          }
+        } catch (err) {
+          console.error(err);
+          setPaymentStatus('error');
+        }
       },
-      theme: { color: "#3399cc" }
+
+      modal: {
+        ondismiss: function () {
+          setPaymentStatus('cancelled');
+        }
+      },
+
+      method: {
+        upi: true,
+        card: false,
+        netbanking: false,
+        wallet: false,
+        emi: false,
+        paylater: false
+      },
+
+      config: {
+        display: {
+          blocks: {
+            upi: {
+              name: "Pay instantly",
+              instruments: [{ method: "upi" }]
+            }
+          },
+          sequence: ["block.upi"],
+          preferences: { show_default_blocks: false }
+        }
+      },
+
+      theme: { color: "#ff4d4f" }
     };
 
     const rzp = new window.Razorpay(options);
@@ -32,21 +91,17 @@ const handlePayment = async (amount, address, items, token) => {
 
   } catch (error) {
     console.error(error);
-    alert("Payment Failed. Try Again.");
+    setPaymentStatus('error');
   }
 };
 
-// -------- Helper: format "HH:MM" -> "10:00 AM - 10:10 AM" --------
+/* ================= BREAK WINDOW FORMAT ================= */
 const formatBreakWindow = (timeStr) => {
   if (!timeStr) return "";
   const [hStr, mStr] = timeStr.split(":");
   let h = parseInt(hStr, 10);
   let m = parseInt(mStr, 10);
-
-  // start
   const startMinutesTotal = h * 60 + m;
-
-  // end = start + 10 minutes
   const endMinutesTotal = startMinutesTotal + 10;
   const endH = Math.floor(endMinutesTotal / 60) % 24;
   const endM = endMinutesTotal % 60;
@@ -63,30 +118,56 @@ const formatBreakWindow = (timeStr) => {
 };
 
 const PlaceOrder = () => {
-  // ========= USER TYPE =========
-  const [userType, setUserType] = useState(
-    localStorage.getItem("userType") || "student"
-  );
-
-  // ========= USER DATA =========
+  const [userType, setUserType] = useState(localStorage.getItem("userType") || "student");
   const [data, setData] = useState({
     fullName: "",
-    block: "",
-    roomNo: "",
     phone: "",
     breakTime: "",
     specialInstructions: "",
     facultyCode: ""
   });
-
   const [tableNumber, setTableNumber] = useState(null);
+  const [paymentStatus, setPaymentStatus] = useState(null);
+  const [currentOrderId, setCurrentOrderId] = useState(null);
 
-  const { getTotalCartAmount, placeOrder, cartItems, token, deliveryFee } =
-    useContext(StoreContext);
+  const {
+    getTotalCartAmount,
+    placeOrder,
+    cartItems,
+    food_list,
+    token,
+    deliveryFee,
+    discount
+  } = useContext(StoreContext);
 
   const navigate = useNavigate();
+  const pollingRef = useRef(null);
 
-  // ========= LOAD SAVED DATA =========
+  /* ================= onChangeHandler ================= */
+  const onChangeHandler = useCallback((event) => {
+    const { name, value } = event.target;
+    setData(prev => ({ ...prev, [name]: value }));
+  }, []);
+
+  /* ================= BUILD ORDER ITEMS ================= */
+  const buildOrderItems = useCallback(() => {
+    const orderItems = [];
+    Object.keys(cartItems).forEach((itemId) => {
+      const item = food_list.find((f) => f._id === itemId);
+      if (item && cartItems[itemId] > 0) {
+        orderItems.push({
+          _id: item._id,
+          name: item.name,
+          price: item.price,
+          quantity: cartItems[itemId],
+          productType: item.productType
+        });
+      }
+    });
+    return orderItems;
+  }, [cartItems, food_list]);
+
+  /* ================= LOAD/SAVE DATA ================= */
   useEffect(() => {
     const saved = JSON.parse(localStorage.getItem("checkoutData"));
     if (saved) {
@@ -95,160 +176,284 @@ const PlaceOrder = () => {
     }
   }, []);
 
-  // ========= SAVE DATA =========
+  useEffect(() => {
+    const savedOrder = localStorage.getItem("activeOrderId");
+    if (savedOrder && paymentStatus === null) {
+      setCurrentOrderId(savedOrder);
+      setPaymentStatus('processing');
+    }
+  }, [paymentStatus]);
+
   useEffect(() => {
     localStorage.setItem("checkoutData", JSON.stringify({ ...data, userType }));
   }, [data, userType]);
 
-  // ========= FORM HANDLER =========
-  const onChangeHandler = (event) => {
-    const { name, value } = event.target;
-    setData(prev => ({ ...prev, [name]: value }));
-  };
-
-  // ========= GET TABLE NUMBER =========
+  /* ================= TABLE NUMBER ================= */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const t = params.get("table");
     if (t) setTableNumber(t);
   }, []);
 
-  // ========= PREVENT EMPTY CART =========
+  /* ================= PREVENT EMPTY CART ================= */
   useEffect(() => {
     if (getTotalCartAmount() === 0) navigate('/');
   }, [getTotalCartAmount, navigate]);
 
-  // ========= BASIC FORM VALIDATION =========
+  /* ================= FORM VALIDATION ================= */
   const validateForm = () => {
     if (!data.fullName.trim()) {
       alert("Please enter your full name.");
       return false;
     }
-
     if (!/^\d{10}$/.test(data.phone)) {
       alert("Please enter a valid 10-digit phone number.");
       return false;
     }
-
     if (!data.breakTime) {
       alert("Please select your break time.");
       return false;
     }
-
-    if (userType === "faculty") {
-      if (!data.block) {
-        alert("Please select your block.");
-        return false;
-      }
-      if (!data.roomNo.trim()) {
-        alert("Please enter your room number.");
-        return false;
-      }
+    if (userType === "faculty" && !data.facultyCode.trim()) {
+      alert("Please enter Faculty Verification Code.");
+      return false;
     }
-
     return true;
   };
 
-  // ========= COD (FACULTY ONLY) =========
+  /* ================= POLLING ================= */
+  const pollOrderStatus = useCallback((orderId) => {
+    if (pollingRef.current) return;
+    
+    const startTime = Date.now();
+    pollingRef.current = setInterval(async () => {
+      try {
+        const { data } = await axios.get(
+          `http://localhost:5000/api/order/status/${orderId}`,
+          { headers: token ? { token } : {} }
+        );
+
+        const status = data.order?.status || data.status;
+
+        if (status === 'CONFIRMED' || status === 'PAID') {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+
+          localStorage.removeItem("activeOrderId");
+          localStorage.removeItem("guestCart");
+
+          setPaymentStatus('success');
+          setTimeout(() => navigate("/"), 1500);
+          return;
+        }
+
+        if (Date.now() - startTime > 30000) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+          setPaymentStatus('timeout');
+        }
+      } catch (err) {
+        console.error("Polling error:", err);
+      }
+    }, 1000);
+  }, [token, navigate]);
+
+  /* ================= COD ================= */
   const handlePlaceOrderCOD = async () => {
     if (userType === "student") {
       alert("Students cannot use Cash on Delivery.");
       return;
     }
-
     if (!validateForm()) return;
 
-    // store nice break window string for backend / display
     const address = {
-  ...data,
-  userType,
-  breakTimeWindow: formatBreakWindow(data.breakTime),
-  table: tableNumber
-};
-
+      ...data,
+      userType,
+      breakTimeWindow: formatBreakWindow(data.breakTime),
+      table: tableNumber
+    };
 
     try {
-      const resp = await placeOrder({ address, paymentMethod: "COD" });
+      const resp = await placeOrder({
+        address,
+        paymentMethod: "COD",
+        items: buildOrderItems()
+      });
 
-      if (resp && resp.success) {
+      if (resp?.success) {
         alert("Order placed successfully!");
         navigate('/');
-      } else {
-        alert("Failed to place order. Try again.");
       }
-
     } catch (err) {
       console.error(err);
       alert("Error placing order.");
     }
   };
 
-  // ========= ONLINE PAYMENT =========
+  /* ================= ONLINE PAYMENT ================= */
   const handlePayOnline = async () => {
     if (!validateForm()) return;
 
     const address = {
       ...data,
+      userType,
       breakTimeWindow: formatBreakWindow(data.breakTime),
       table: tableNumber
     };
 
     const subtotal = getTotalCartAmount();
-    const amount = subtotal === 0 ? 0 : subtotal + deliveryFee;
+    const amount = Math.max(1, subtotal + deliveryFee - discount);
 
-    await handlePayment(amount, address, cartItems, token);
+    try {
+      localStorage.removeItem("activeOrderId");
+      setPaymentStatus('initiating');
+
+      await handlePayment(
+        amount,
+        address,
+        buildOrderItems(),
+        token,
+        setPaymentStatus,
+        (realOrderId) => {
+          setCurrentOrderId(realOrderId);
+          localStorage.setItem("activeOrderId", realOrderId);
+          setPaymentStatus('processing');
+        }
+      );
+    } catch (error) {
+      console.error("Payment error:", error);
+      setPaymentStatus('error');
+    }
   };
 
+  /* ================= CLEANUP & POLLING ================= */
+  useEffect(() => {
+    if (paymentStatus === 'processing' && currentOrderId) {
+      pollOrderStatus(currentOrderId);
+    }
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [paymentStatus, currentOrderId, pollOrderStatus]);
+
+  /* ================= PAYMENT STATUS UI ================= */
+  if (paymentStatus) {
+    return (
+      <div className="payment-status-overlay" style={{
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+        background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', 
+        justifyContent: 'center', zIndex: 9999
+      }}>
+        <div className="payment-status-card" style={{
+          background: 'white', padding: '40px', borderRadius: '12px', 
+          textAlign: 'center', maxWidth: '400px', boxShadow: '0 20px 40px rgba(0,0,0,0.3)'
+        }}>
+          {paymentStatus === 'initiating' && (
+            <>
+              <div style={{fontSize: '48px', marginBottom: '20px'}}>🔄</div>
+              <h3 style={{margin: '0 0 16px 0', color: '#333'}}>Opening Payment...</h3>
+              <p style={{color: '#666'}}>Redirecting to UPI payment</p>
+            </>
+          )}
+          
+          {paymentStatus === 'verifying' && (
+            <>
+              <div style={{fontSize: '48px', marginBottom: '20px'}}>🔍</div>
+              <h3 style={{margin: '0 0 16px 0', color: '#333'}}>Verifying Payment...</h3>
+              <p style={{color: '#666'}}>Please wait while we confirm your payment</p>
+            </>
+          )}
+          
+          {paymentStatus === 'processing' && (
+            <>
+              <div style={{fontSize: '48px', marginBottom: '20px'}}>⏳</div>
+              <h3 style={{margin: '0 0 16px 0', color: '#333'}}>Processing Order...</h3>
+              <p style={{color: '#666'}}>
+                Finalizing your order (Order ID: {currentOrderId?.slice(-6)})
+              </p>
+            </>
+          )}
+          
+          {paymentStatus === 'success' && (
+            <>
+              <div style={{fontSize: '48px', marginBottom: '20px', color: 'green'}}>✅</div>
+              <h3 style={{margin: '0 0 16px 0', color: 'green'}}>Order Confirmed!</h3>
+              <p style={{color: '#666'}}>Redirecting to home...</p>
+            </>
+          )}
+          
+          {(paymentStatus === 'failed' || paymentStatus === 'cancelled' || 
+            paymentStatus === 'error' || paymentStatus === 'timeout') && (
+            <>
+              <div style={{fontSize: '48px', marginBottom: '20px', color: 'red'}}>❌</div>
+              <h3 style={{margin: '0 0 16px 0', color: '#333'}}>
+                Payment {paymentStatus === 'cancelled' ? 'Cancelled' : 'Failed'}
+              </h3>
+              <p style={{color: '#666', margin: '0 0 24px 0'}}>
+                {paymentStatus === 'cancelled' && 'You cancelled the payment.'}
+                {paymentStatus === 'timeout' && 'Verification timeout. Please check your order status.'}
+                {paymentStatus !== 'cancelled' && paymentStatus !== 'timeout' && 'Please try again.'}
+              </p>
+              <button 
+                onClick={() => {
+                  setPaymentStatus(null);
+                  setCurrentOrderId(null);
+                  localStorage.removeItem("activeOrderId");
+                  if (pollingRef.current) {
+                    clearInterval(pollingRef.current);
+                    pollingRef.current = null;
+                  }
+                }}
+                style={{
+                  background: '#ff4d4f', color: 'white', border: 'none',
+                  padding: '12px 24px', borderRadius: '8px', fontSize: '16px',
+                  cursor: 'pointer', fontWeight: '600'
+                }}
+              >
+                Try Again
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  /* ================= MAIN FORM ================= */
   return (
     <div className='place-order'>
-
-      {/* LEFT SIDE FORM */}
       <div className="place-order-left">
-
         <p className='title'>Delivery Information</p>
-
-        {/* USER TYPE SELECT */}
         <div className="user-type-boxes">
-
-          <div
-            className={`type-box ${userType === "student" ? "active" : ""}`}
-            onClick={() => setUserType("student")}
-          >
+          <div className={`type-box ${userType === "student" ? "active" : ""}`} 
+               onClick={() => setUserType("student")}>
             Student
           </div>
-
-          <div
-            className={`type-box ${userType === "faculty" ? "active" : ""}`}
-            onClick={() => setUserType("faculty")}
-          >
+          <div className={`type-box ${userType === "faculty" ? "active" : ""}`} 
+               onClick={() => setUserType("faculty")}>
             Faculty
           </div>
-
         </div>
-
-        {/* TABLE NUMBER */}
+        
         {tableNumber && (
-          <div style={{
-            marginBottom: 12,
-            padding: 8,
-            background: "#f6f6f6",
-            borderRadius: 6
-          }}>
+          <div style={{marginBottom: 12, padding: 8, background: "#f6f6f6", borderRadius: 6}}>
             <strong>Ordering for Table:</strong> {tableNumber}
           </div>
         )}
-
-        {/* FULL NAME */}
-        <input
-          type="text"
-          name="fullName"
-          value={data.fullName}
-          onChange={onChangeHandler}
-          placeholder="Full Name"
-          required
+        
+        <input 
+          type="text" 
+          name="fullName" 
+          value={data.fullName} 
+          onChange={onChangeHandler} 
+          placeholder="Full Name" 
+          required 
         />
-
-        {/* PHONE NUMBER (10-digit validation + digits only) */}
+        
         <input
           type="tel"
           name="phone"
@@ -258,154 +463,94 @@ const PlaceOrder = () => {
           required
           onChange={(e) => {
             const value = e.target.value.replace(/\D/g, "");
-            if (value.length <= 10) {
-              setData(prev => ({ ...prev, phone: value }));
-            }
+            if (value.length <= 10) setData(prev => ({ ...prev, phone: value }));
           }}
         />
-
-        {/* BREAK TIME (time picker; 10-minute window) */}
-        <div style={{ marginTop: "10px", marginBottom: "10px" }}>
-          <label style={{ display: "block", marginBottom: "4px", fontSize: "14px" }}>
-            Select your break start time
-          </label>
-          <input
-            type="time"
-            name="breakTime"
-            value={data.breakTime}
-            onChange={onChangeHandler}
-            step={600} // 600s = 10 minutes
-            required
-          />
+        
+        <div className="break-time-container">
+          <label className="break-time-label">⏰ Select your break start time</label>
+          <div className="time-input-box">
+            <input 
+              type="time" 
+              name="breakTime" 
+              value={data.breakTime} 
+              onChange={onChangeHandler} 
+              step={600} 
+              required 
+            />
+          </div>
           {data.breakTime && (
-            <p style={{ marginTop: "6px", fontSize: "13px", color: "#555" }}>
+            <p className="delivery-window">
               Delivery window: <b>{formatBreakWindow(data.breakTime)}</b>
             </p>
           )}
         </div>
-
-        {/* FACULTY ONLY FIELDS */}
+        
         {userType === "faculty" && (
-          <>
-
-            <select
-              name='block'
-              onChange={onChangeHandler}
-              value={data.block}
-            >
-              <option value="">Select Block</option>
-              <option value="A">Block A</option>
-              <option value="B">Block B</option>
-              <option value="C">Block C</option>
-              <option value="D">Block D</option>
-              <option value="E">Block E</option>
-            </select>
-
-            <input
-              type="text"
-              name='roomNo'
-              value={data.roomNo}
-              onChange={onChangeHandler}
-              placeholder='Room No.'
-            />
-
-            <input
-              type="text"
-              name='facultyCode'
-              value={data.facultyCode}
-              onChange={onChangeHandler}
-              placeholder='Faculty Verification Code'
-            />
-
-          </>
+          <input 
+            type="text" 
+            name='facultyCode' 
+            value={data.facultyCode} 
+            onChange={onChangeHandler} 
+            placeholder='Faculty Verification Code' 
+          />
         )}
-
-        {/* SPECIAL INSTRUCTIONS */}
+        
         <textarea
           name="specialInstructions"
           value={data.specialInstructions}
           onChange={onChangeHandler}
           placeholder="Any special instructions? (optional)"
-          style={{
-            width: "100%",
-            minHeight: "80px",
-            marginTop: "10px",
-            padding: "10px",
-            borderRadius: "6px"
-          }}
-        ></textarea>
-
+          style={{width: "100%", minHeight: "80px", marginTop: "10px", padding: "10px", borderRadius: "6px"}}
+        />
       </div>
 
-      {/* RIGHT SIDE - TOTAL & PAYMENT */}
       <div className="place-order-right">
-
-        {/* CART TOTALS */}
         <div className="cart-total">
           <h2>Cart Totals</h2>
-
           <div className="cart-total-details">
             <p>Subtotal</p>
             <p>₹{getTotalCartAmount()}</p>
           </div>
-
           <hr />
-
           <div className="cart-total-details">
             <p>Delivery Fee</p>
             <p>₹{getTotalCartAmount() === 0 ? 0 : deliveryFee}</p>
           </div>
-
           <hr />
-
-          <div className="cart-total-details">
-            <b>Total</b>
-            <b>
-              ₹
-              {getTotalCartAmount() === 0
-                ? 0
-                : getTotalCartAmount() + deliveryFee}
-            </b>
-          </div>
-
-        </div>
-
-        {/* PAYMENT OPTIONS */}
-        <div className="payment-options">
-          <h2>Select Payment Method</h2>
-
-          {/* COD ONLY FOR FACULTY */}
-          {userType === "faculty" && (
+          {discount > 0 && (
             <>
-              <div className="payment-option">
-                <img src={assets.selector_icon} alt="" />
-                <p>COD (Cash On Delivery)</p>
+              <div className="cart-total-details">
+                <p>Discount</p>
+                <p>-₹{discount}</p>
               </div>
-
-              <button onClick={handlePlaceOrderCOD}>
-                PLACE ORDER (COD)
-              </button>
-
               <hr />
             </>
           )}
-
-          {/* RAZORPAY */}
-          <div className="payment-option">
-            <img src={assets.selector_icon} alt="" />
-            <p>Pay Online (Razorpay)</p>
+          <div className="cart-total-details">
+            <b>Total</b>
+            <b>₹{getTotalCartAmount() === 0 ? 0 : getTotalCartAmount() + deliveryFee - discount}</b>
           </div>
-
-          <button onClick={handlePayOnline} className="razorpay-btn">
-            PAY WITH RAZORPAY
-          </button>
-
         </div>
 
-      </div>
+      <div className="payment-options">
+  <h2>Select Payment Method</h2>
 
-    </div>
-  );
+
+  <div className="payment-option">
+    <p style={{ fontWeight: "600" }}>Pay Online</p>
+    <small style={{ color: "#888" }}>
+      UPI / Razorpay secure payment
+    </small>
+  </div>
+
+  <button onClick={handlePayOnline}>
+    PAY ONLINE
+  </button>
+</div>                    
+</div>   
+</div>
+);
 };
 
 export default PlaceOrder;
