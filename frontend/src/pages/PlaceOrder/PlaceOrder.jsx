@@ -113,6 +113,7 @@ const formatBreakWindow = (timeStr) => {
 };
 
 const PlaceOrder = () => {
+  const SHOW_COD = false; // 🔒 change to true anytime to enable COD again
   const [userType, setUserType] = useState(localStorage.getItem("userType") || "student");
   const [data, setData] = useState({
     fullName: "",
@@ -554,20 +555,20 @@ const PlaceOrder = () => {
         <div className="payment-options">
           <h2>Select Payment Method</h2>
 
-          {userType === "faculty" && (
-            <>
-              <div className="payment-option">
-                <img src={assets.selector_icon} alt="" />
-                <p>COD (Cash On Delivery)</p>
-              </div>
+          {userType === "faculty" && SHOW_COD && (
+  <>
+    <div className="payment-option">
+      <img src={assets.selector_icon} alt="" />
+      <p>COD (Cash On Delivery)</p>
+    </div>
 
-              <button onClick={handlePlaceOrderCOD}>
-                PLACE ORDER (COD)
-              </button>
+    <button onClick={handlePlaceOrderCOD}>
+      PLACE ORDER (COD)
+    </button>
 
-              <hr />
-            </>
-          )}
+    <hr />
+  </>
+)}
 
           <div className="payment-option">
   <p style={{ fontWeight: "600" }}>Pay Online</p>
