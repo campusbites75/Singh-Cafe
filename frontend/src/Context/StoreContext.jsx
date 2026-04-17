@@ -6,7 +6,7 @@ import { io } from "socket.io-client"; // ✅ NEW
 export const StoreContext = createContext(null);
 
 const StoreContextProvider = (props) => {
-  const url = "https://singh-cafe-dql6.onrender.com";
+  const url = "https://singhcafe.onrender.com";
 
   const [food_list, setFoodList] = useState([]);
   const [cartItems, setCartItems] = useState({});
@@ -66,7 +66,7 @@ const StoreContextProvider = (props) => {
   // 🔥 SOCKET LIVE SYNC
   // ===============================
   useEffect(() => {
-    const socket = io("https://singh-cafe-dql6.onrender.com");
+    const socket = io("https://singhcafe.onrender.com");
 
     socket.on("kitchenStatusUpdated", (status) => {
       console.log("⚡ Kitchen status updated:", status);
