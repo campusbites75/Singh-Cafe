@@ -44,7 +44,7 @@ const Cart = () => {
     try {
 
       const res = await axios.post(
-        "https://singh-cafe-dql6.onrender.com/api/coupon/apply",
+        "https://singhcafe.onrender.com/api/coupon/apply",
         {
           code: promoCode,
           subtotal: getTotalCartAmount()
