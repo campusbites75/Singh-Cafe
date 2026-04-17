@@ -19,7 +19,7 @@ const Orders = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [modalType, setModalType] = useState("online"); // online | pos
 
-  const API_BASE = "https://singh-cafe-dql6.onrender.com";
+  const API_BASE = "https://singhcafe.onrender.com";
 
   // ONLINE APIs
   const LIST_API = `${API_BASE}/api/order/list`;
