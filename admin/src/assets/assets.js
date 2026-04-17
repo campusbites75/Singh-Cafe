@@ -5,7 +5,7 @@ import profile_image from './profile_image.png'
 import upload_area from './upload_area.png'
 import parcel_icon from './parcel_icon.png'
 
-export const url = 'https://singh-cafe-dql6.onrender.com'
+export const url = 'https://singhcafe.onrender.com'
 export const currency = '₹'
 
 export const assets ={
