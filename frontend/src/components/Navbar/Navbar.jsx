@@ -34,7 +34,7 @@ const Navbar = ({ setShowLogin }) => {
   useEffect(() => {
     const fetchKitchenStatus = async () => {
       try {
-        const res = await fetch("https://singh-cafe-dql6.onrender.com/api/settings");
+        const res = await fetch("https://singhcafe.onrender.com/api/settings");
         const data = await res.json();
         setKitchenOpen(data.kitchenOpen);
       } catch (err) {
@@ -46,7 +46,7 @@ const Navbar = ({ setShowLogin }) => {
   }, []);
 // 🔥 LIVE SOCKET SYNC
 useEffect(() => {
-  const socket = io("https://singh-cafe-dql6.onrender.com");
+  const socket = io("https://singhcafe.onrender.com");
 
   socket.on("kitchenStatusUpdated", (status) => {
     console.log("🔥 Live update received:", status);
