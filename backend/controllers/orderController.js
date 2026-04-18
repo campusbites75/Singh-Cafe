@@ -26,7 +26,7 @@ const updateStock = async (items) => {
   }
 };
 const currency = "inr";
-const frontend_URL = "http://localhost:5173";
+const frontend_URL = "https://campusbitessinghcafe.vercel.app";
 
 /* ================= VALIDATE ITEMS ================= */
 const validateItems = (items) => {
