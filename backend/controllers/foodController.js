@@ -4,7 +4,7 @@ import fs from "fs";
 /* ================= ADD FOOD ================= */
 const addFood = async (req, res) => {
   try {
-    const { name, description, price, category, productType, quantity } = req.body;
+    const { name, description, price, category, productType } = req.body;
 
     if (!req.file) {
       return res.json({
@@ -22,9 +22,7 @@ const addFood = async (req, res) => {
 
     // ✅ NORMALIZE TYPE
     const normalizedType =
-      String(productType || "")
-        .trim()
-        .toLowerCase() === "packed"
+      String(productType || "").trim().toLowerCase() === "packed"
         ? "Packed"
         : "Unpacked";
 
@@ -34,9 +32,8 @@ const addFood = async (req, res) => {
       price,
       category,
       productType: normalizedType,
-      image: req.file.filename,
+      image: req.file.filename, // store only filename
       isActive: true,
-      quantity: quantity ? Number(quantity) : 0, // ⭐ NEW
     });
 
     await newFood.save();
@@ -69,14 +66,22 @@ const listFood = async (req, res) => {
         .sort({ createdAt: -1 });
     } else {
       foods = await foodModel
-        .find({ isActive: true, quantity: { $gt: 0 } }) // ⭐ prevent showing out of stock
+        .find({ isActive: true })
         .populate("category")
         .sort({ createdAt: -1 });
     }
 
+    // 🔥 ADD FULL IMAGE URL HERE
+    const updatedFoods = foods.map((item) => ({
+      ...item._doc,
+      image: item.image
+        ? `http://localhost:5000/images/${item.image}`
+        : null,
+    }));
+
     res.json({
       success: true,
-      data: foods,
+      data: updatedFoods,
     });
 
   } catch (error) {
@@ -127,7 +132,7 @@ const removeFood = async (req, res) => {
 /* ================= UPDATE FOOD ================= */
 const updateFood = async (req, res) => {
   try {
-    const { id, name, description, price, category, productType, quantity } = req.body;
+    const { id, name, description, price, category, productType } = req.body;
 
     const food = await foodModel.findById(id);
 
@@ -147,11 +152,8 @@ const updateFood = async (req, res) => {
       food.image = req.file.filename;
     }
 
-    // ✅ NORMALIZE TYPE
     const normalizedType =
-      String(productType || "")
-        .trim()
-        .toLowerCase() === "packed"
+      String(productType || "").trim().toLowerCase() === "packed"
         ? "Packed"
         : "Unpacked";
 
@@ -160,11 +162,6 @@ const updateFood = async (req, res) => {
     food.price = price;
     food.category = category;
     food.productType = normalizedType;
-
-    // ⭐ NEW: update quantity if provided
-    if (quantity !== undefined) {
-      food.quantity = Number(quantity);
-    }
 
     await food.save();
 
@@ -182,38 +179,6 @@ const updateFood = async (req, res) => {
   }
 };
 
-/* ================= UPDATE ONLY QUANTITY (INLINE EDIT) ================= */
-const updateQuantity = async (req, res) => {
-  try {
-    const { id, quantity } = req.body;
-
-    const updatedFood = await foodModel.findByIdAndUpdate(
-      id,
-      { quantity: Number(quantity) },
-      { new: true }
-    );
-
-    if (!updatedFood) {
-      return res.json({
-        success: false,
-        message: "Food not found",
-      });
-    }
-
-    res.json({
-      success: true,
-      message: "Quantity updated successfully",
-      quantity: updatedFood.quantity,
-    });
-
-  } catch (error) {
-    console.error("UPDATE QUANTITY ERROR:", error);
-    res.json({
-      success: false,
-      message: "Error updating quantity",
-    });
-  }
-};
 /* ================= TOGGLE FOOD STATUS ================= */
 const toggleFoodStatus = async (req, res) => {
   try {
@@ -245,27 +210,11 @@ const toggleFoodStatus = async (req, res) => {
     });
   }
 };
-const fixQuantity = async (req, res) => {
-  try {
-    await foodModel.updateMany({}, { $set: { quantity: 1 } });
 
-    res.json({
-      success: true,
-      message: "All items updated with quantity = 1",
-    });
-  } catch (error) {
-    res.json({
-      success: false,
-      message: "Error fixing quantity",
-    });
-  }
-};
 export {
   addFood,
   listFood,
   removeFood,
   updateFood,
-  updateQuantity,
   toggleFoodStatus,
-  fixQuantity // 👈 ADD THIS
 };
