@@ -4,61 +4,28 @@ import axios from "axios";
 export const KitchenContext = createContext();
 
 const KitchenProvider = ({ children }) => {
-  const [kitchenOpen, setKitchenOpen] = useState(false);
+  const [kitchenOpen, setKitchenOpen] = useState(true);
 
-  const baseURL = "https://singhcafe.onrender.com";
-
-  // ✅ FETCH STATUS
   const fetchStatus = async () => {
-    try {
-      const res = await axios.get(`${baseURL}/api/settings`);
-
-      // 🔥 IMPORTANT FIX
-      if (res.data?.kitchenOpen !== undefined) {
-        setKitchenOpen(res.data.kitchenOpen);
-      }
-
-      console.log("Kitchen Status:", res.data); // debug
-    } catch (err) {
-      console.error("Kitchen fetch error:", err);
+    const res = await axios.get("https://singhcafe.onrender.com/api/settings");
+    if (res.data.success) {
+      setKitchenOpen(res.data.kitchenOpen);
     }
   };
 
-  // ✅ TOGGLE
   const toggleKitchen = async () => {
-    try {
-      const res = await axios.post(
-        `${baseURL}/api/settings/toggle-kitchen`
-      );
-
-      if (res.data?.kitchenOpen !== undefined) {
-        setKitchenOpen(res.data.kitchenOpen);
-      }
-
-      console.log("Kitchen toggled:", res.data); // debug
-    } catch (err) {
-      console.error("Toggle error:", err);
+    const res = await axios.post("https://singhcafe.onrender.com/api/settings/toggle-kitchen");
+    if (res.data.success) {
+      setKitchenOpen(res.data.kitchenOpen);
     }
   };
 
-  // ✅ INITIAL LOAD
   useEffect(() => {
     fetchStatus();
   }, []);
 
-  // 🔥 AUTO SYNC (VERY IMPORTANT)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchStatus();
-    }, 5000); // every 5 sec
-
-    return () => clearInterval(interval);
-  }, []);
-
   return (
-    <KitchenContext.Provider
-      value={{ kitchenOpen, toggleKitchen, fetchStatus }}
-    >
+    <KitchenContext.Provider value={{ kitchenOpen, toggleKitchen }}>
       {children}
     </KitchenContext.Provider>
   );
