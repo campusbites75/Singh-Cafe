@@ -75,7 +75,7 @@ const listFood = async (req, res) => {
     const updatedFoods = foods.map((item) => ({
       ...item._doc,
       image: item.image
-        ? `http://localhost:5000/images/${item.image}`
+        ? `https://singhcafe.onrender.com/images/${item.image}`
         : null,
     }));
 
