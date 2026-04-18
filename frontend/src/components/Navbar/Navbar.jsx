@@ -241,8 +241,8 @@ useEffect(() => {
             <button
               className="admin-enter-btn"
               onClick={() => {
-                if (adminKey === "SRFOODCOURT26") {
-                  window.location.href = "https://campusbitessinghcafeadmin.vercel.app";
+                if (adminKey === "SRSINGHCAFE26") {
+                  window.location.href = "https://campusbitessinghcafeadmin.vercel.app/";
                 } else {
                   alert("Invalid Admin Code");
                 }
