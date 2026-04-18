@@ -3,7 +3,8 @@
         addFood, 
         listFood, 
         removeFood,
-        toggleFoodStatus   // ✅ NEW
+        toggleFoodStatus, 
+        updateQuantity// ✅ NEW
     } from '../controllers/foodController.js';
     import multer from 'multer';
 
