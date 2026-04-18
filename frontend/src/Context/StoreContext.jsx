@@ -11,7 +11,6 @@ const StoreContextProvider = (props) => {
   const [cartItems, setCartItems] = useState({});
   const [token, setToken] = useState(localStorage.getItem("token") || "");
 
-  // ✅ Improved: Load user directly from localStorage
   const [user, setUser] = useState(
     JSON.parse(localStorage.getItem("user")) || null
   );
@@ -21,6 +20,9 @@ const StoreContextProvider = (props) => {
   const [deliveryFee, setDeliveryFee] = useState(10);
   const [discount, setDiscount] = useState(0);
   const [couponCode, setCouponCode] = useState("");
+
+  // 🔥 NEW: Kitchen Status
+  const [kitchenOpen, setKitchenOpen] = useState(false);
 
   // ============================
   // AXIOS CONFIG
@@ -42,19 +44,25 @@ const StoreContextProvider = (props) => {
   }, []);
 
   // ===============================
-  // FETCH DELIVERY FEE
+  // FETCH DELIVERY FEE + KITCHEN STATUS
   // ===============================
-  const fetchDeliveryFee = async () => {
+  const fetchSettings = async () => {
     try {
       const res = await axios.get("/api/settings");
-      if (
-        res.data?.deliveryFee !== undefined &&
-        res.data?.deliveryFee !== null
-      ) {
+
+      // ✅ Delivery Fee
+      if (res.data?.deliveryFee !== undefined) {
         setDeliveryFee(res.data.deliveryFee);
       }
+
+      // ✅ Kitchen Status (IMPORTANT)
+      if (res.data?.kitchenOpen !== undefined) {
+        setKitchenOpen(res.data.kitchenOpen);
+      }
+
+      console.log("SETTINGS:", res.data); // 🔍 debug
     } catch (err) {
-      console.error("Delivery fee fetch error:", err);
+      console.error("Settings fetch error:", err);
     }
   };
 
@@ -117,33 +125,31 @@ const StoreContextProvider = (props) => {
   // FETCH FOOD
   // ===============================
   const fetchFoodList = async () => {
-  try {
-    const response = await axios.get("/api/food/list");
+    try {
+      const response = await axios.get("/api/food/list");
 
-    // 🔥 FIX: normalize image URLs here
-    const updatedData = response.data.data.map((item) => {
-      let imageUrl = item.image;
+      const updatedData = response.data.data.map((item) => {
+        let imageUrl = item.image;
 
-      if (!imageUrl) {
-        imageUrl = null;
-      } else if (!imageUrl.startsWith("http")) {
-        imageUrl = `${url}/images/${imageUrl}`;
-      }
+        if (!imageUrl) {
+          imageUrl = null;
+        } else if (!imageUrl.startsWith("http")) {
+          imageUrl = `${url}/images/${imageUrl}`;
+        }
 
-      return {
-        ...item,
-        image: imageUrl,
-      };
-    });
+        return {
+          ...item,
+          image: imageUrl,
+        };
+      });
 
-    console.log("FOOD DATA:", updatedData); // 🔍 debug
+      console.log("FOOD DATA:", updatedData);
 
-    setFoodList(updatedData);
-
-  } catch (error) {
-    console.error("FETCH FOOD ERROR:", error);
-  }
-};
+      setFoodList(updatedData);
+    } catch (error) {
+      console.error("FETCH FOOD ERROR:", error);
+    }
+  };
 
   // ===============================
   // PLACE ORDER
@@ -187,8 +193,7 @@ const StoreContextProvider = (props) => {
       console.error("Order error:", error.response?.data || error.message);
       return {
         success: false,
-        message:
-          error.response?.data?.message || "Order failed",
+        message: error.response?.data?.message || "Order failed",
       };
     }
   };
@@ -199,22 +204,34 @@ const StoreContextProvider = (props) => {
   useEffect(() => {
     async function loadData() {
       await fetchFoodList();
-      await fetchDeliveryFee();
-
-      const storedToken = localStorage.getItem("token");
-
-      if (storedToken) {
-        setToken(storedToken);
-      } else {
-        const guestCart =
-          JSON.parse(localStorage.getItem("guestCart")) || {};
-        setCartItems(guestCart);
-      }
+      await fetchSettings(); // ✅ merged settings
     }
 
     loadData();
+
+    const storedToken = localStorage.getItem("token");
+
+    if (storedToken) {
+      setToken(storedToken);
+    } else {
+      const guestCart =
+        JSON.parse(localStorage.getItem("guestCart")) || {};
+      setCartItems(guestCart);
+    }
   }, []);
 
+  // 🔥 REAL-TIME KITCHEN SYNC (VERY IMPORTANT)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchSettings();
+    }, 5000); // every 5 sec
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // ===============================
+  // CONTEXT VALUE
+  // ===============================
   const contextValue = {
     url,
     food_list,
@@ -236,6 +253,9 @@ const StoreContextProvider = (props) => {
     setDiscount,
     couponCode,
     setCouponCode,
+
+    // ✅ NEW
+    kitchenOpen
   };
 
   return (
