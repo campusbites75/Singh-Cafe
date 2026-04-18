@@ -17,15 +17,18 @@ router.get("/", async (req, res) => {
       });
     }
 
-    res.json({
+    return res.status(200).json({
       success: true,
       deliveryFee: settings.deliveryFee,
       kitchenOpen: settings.kitchenOpen
     });
 
   } catch (error) {
-    console.error("Error fetching settings:", error);
-    res.json({ success: false, message: "Failed to fetch settings" });
+    console.error("❌ Error fetching settings:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch settings"
+    });
   }
 });
 
@@ -38,7 +41,10 @@ router.post("/update-delivery-fee", async (req, res) => {
     const { deliveryFee } = req.body;
 
     if (deliveryFee === undefined || isNaN(deliveryFee)) {
-      return res.json({ success: false, message: "Invalid delivery fee" });
+      return res.status(400).json({
+        success: false,
+        message: "Invalid delivery fee"
+      });
     }
 
     let settings = await SettingsModel.findOne();
@@ -50,14 +56,17 @@ router.post("/update-delivery-fee", async (req, res) => {
       await settings.save();
     }
 
-    res.json({
+    return res.status(200).json({
       success: true,
       deliveryFee: settings.deliveryFee
     });
 
   } catch (error) {
-    console.error("Error updating settings:", error);
-    res.json({ success: false, message: "Failed to update settings" });
+    console.error("❌ Error updating settings:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update settings"
+    });
   }
 });
 
@@ -70,7 +79,7 @@ router.post("/set-kitchen", async (req, res) => {
     const { kitchenOpen } = req.body;
 
     if (typeof kitchenOpen !== "boolean") {
-      return res.json({
+      return res.status(400).json({
         success: false,
         message: "Invalid kitchen status"
       });
@@ -88,21 +97,25 @@ router.post("/set-kitchen", async (req, res) => {
       await settings.save();
     }
 
-    // 🔥🔥 LIVE SOCKET EMIT
-    const io = req.app.get("io");
-    if (io) {
-      io.emit("kitchenStatusUpdated", settings.kitchenOpen);
-      console.log("⚡ Kitchen status broadcast:", settings.kitchenOpen);
+    // 🔥 SAFE SOCKET EMIT
+    try {
+      const io = req.app.get("io");
+      if (io) {
+        io.emit("kitchenStatusUpdated", settings.kitchenOpen);
+        console.log("⚡ Kitchen status broadcast:", settings.kitchenOpen);
+      }
+    } catch (socketError) {
+      console.error("⚠️ Socket emit error:", socketError);
     }
 
-    res.json({
+    return res.status(200).json({
       success: true,
       kitchenOpen: settings.kitchenOpen
     });
 
   } catch (error) {
-    console.error("Error setting kitchen:", error);
-    res.json({
+    console.error("❌ Error setting kitchen:", error);
+    return res.status(500).json({
       success: false,
       message: "Failed to update kitchen status"
     });
