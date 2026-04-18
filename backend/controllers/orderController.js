@@ -275,7 +275,7 @@ export const rejectOrder = async (req, res) => {
 
 export const kitchenOrders = async (req, res) => {
   const orders = await orderModel.find({ status: "preparing" });
-  res.json({ success: true, order });
+  res.json({ success: true, orders });
 };
 
 export const markPrepared = async (req, res) => {
