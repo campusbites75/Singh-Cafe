@@ -21,7 +21,7 @@ const StoreContextProvider = (props) => {
   const [discount, setDiscount] = useState(0);
   const [couponCode, setCouponCode] = useState("");
 
-  // 🔥 NEW: Kitchen Status
+  // 🔥 KITCHEN STATUS (FIXED)
   const [kitchenOpen, setKitchenOpen] = useState(false);
 
   // ============================
@@ -44,23 +44,30 @@ const StoreContextProvider = (props) => {
   }, []);
 
   // ===============================
-  // FETCH DELIVERY FEE + KITCHEN STATUS
+  // 🔥 FETCH SETTINGS (FINAL FIX)
   // ===============================
   const fetchSettings = async () => {
     try {
       const res = await axios.get("/api/settings");
 
-      // ✅ Delivery Fee
+      console.log("SETTINGS API:", res.data);
+
+      // ✅ FORCE BOOLEAN + RE-RENDER SAFE
+      const isOpen = res.data?.kitchenOpen === true;
+
+      setKitchenOpen((prev) => {
+        if (prev !== isOpen) {
+          console.log("Kitchen status updated:", isOpen);
+          return isOpen;
+        }
+        return prev;
+      });
+
+      // ✅ DELIVERY FEE
       if (res.data?.deliveryFee !== undefined) {
         setDeliveryFee(res.data.deliveryFee);
       }
 
-      // ✅ Kitchen Status (IMPORTANT)
-      if (res.data?.kitchenOpen !== undefined) {
-        setKitchenOpen(res.data.kitchenOpen);
-      }
-
-      console.log("SETTINGS:", res.data); // 🔍 debug
     } catch (err) {
       console.error("Settings fetch error:", err);
     }
@@ -143,9 +150,8 @@ const StoreContextProvider = (props) => {
         };
       });
 
-      console.log("FOOD DATA:", updatedData);
-
       setFoodList(updatedData);
+
     } catch (error) {
       console.error("FETCH FOOD ERROR:", error);
     }
@@ -204,7 +210,7 @@ const StoreContextProvider = (props) => {
   useEffect(() => {
     async function loadData() {
       await fetchFoodList();
-      await fetchSettings(); // ✅ merged settings
+      await fetchSettings(); // 🔥 IMPORTANT
     }
 
     loadData();
@@ -220,11 +226,11 @@ const StoreContextProvider = (props) => {
     }
   }, []);
 
-  // 🔥 REAL-TIME KITCHEN SYNC (VERY IMPORTANT)
+  // 🔥 REAL-TIME SYNC (AUTO UPDATE)
   useEffect(() => {
     const interval = setInterval(() => {
       fetchSettings();
-    }, 5000); // every 5 sec
+    }, 3000); // faster sync
 
     return () => clearInterval(interval);
   }, []);
@@ -254,8 +260,8 @@ const StoreContextProvider = (props) => {
     couponCode,
     setCouponCode,
 
-    // ✅ NEW
-    kitchenOpen
+    // 🔥 FINAL FIX
+    kitchenOpen,
   };
 
   return (
