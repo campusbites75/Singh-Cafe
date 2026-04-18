@@ -1,41 +1,48 @@
-    import express from 'express';
-    import { 
-        addFood, 
-        listFood, 
-        removeFood,
-        toggleFoodStatus, 
-        updateQuantity// ✅ NEW
-    } from '../controllers/foodController.js';
-    import multer from 'multer';
+import express from 'express';
+import multer from 'multer';
 
-    const foodRouter = express.Router();
+import { 
+    addFood, 
+    listFood, 
+    removeFood,
+    toggleFoodStatus, 
+    updateQuantity
+} from '../controllers/foodController.js';
 
-    // ================================
-    // IMAGE STORAGE
-    // ================================
-    const storage = multer.diskStorage({
-        destination: 'uploads',
-        filename: (req, file, cb) => {
-            return cb(null, `${Date.now()}-${file.originalname}`);
-        }
-    });
+const foodRouter = express.Router();
 
-    const upload = multer({ storage });
 
-    // ================================
-    // ROUTES
-    // ================================
+// ================================
+// IMAGE STORAGE (MULTER)
+// ================================
+const storage = multer.diskStorage({
+    destination: 'uploads',
+    filename: (req, file, cb) => {
+        cb(null, `${Date.now()}-${file.originalname}`);
+    }
+});
 
-    // Get all foods
-    foodRouter.get("/list", listFood);
+const upload = multer({ storage });
 
-    // Add food
-    foodRouter.post("/add", upload.single('image'), addFood);
 
-    // Remove food
-    foodRouter.post("/remove", removeFood);
+// ================================
+// ROUTES
+// ================================
 
-    // ✅ NEW: Pause / Resume food
-    foodRouter.post("/toggle", toggleFoodStatus);
+// ✅ Get all foods
+foodRouter.get("/list", listFood);
 
-    export default foodRouter;
+// ✅ Add food (with image)
+foodRouter.post("/add", upload.single('image'), addFood);
+
+// ✅ Remove food
+foodRouter.post("/remove", removeFood);
+
+// ✅ Pause / Resume food
+foodRouter.post("/toggle-status", toggleFoodStatus);
+
+// ✅ 🔥 FIXED: Update quantity (THIS WAS MISSING)
+foodRouter.post("/update-quantity", updateQuantity);
+
+
+export default foodRouter;
