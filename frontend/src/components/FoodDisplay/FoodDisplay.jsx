@@ -32,11 +32,16 @@ const FoodDisplay = ({ category }) => {
       <div className="food-display-list">
         {filteredFoods.length > 0 ? (
           filteredFoods.map((item) => {
-            // ✅ FIX: safe image URL
-            const imageUrl =
-              item.image && url
-                ? `${url}/images/${item.image}`
-                : "https://dummyimage.com/300x200/cccccc/000000&text=No+Image";
+            // 🔥 FIX: handle both full URL + filename
+            let imageUrl = "https://dummyimage.com/300x200/cccccc/000000&text=No+Image";
+
+            if (item.image) {
+              if (item.image.startsWith("http")) {
+                imageUrl = item.image; // already full URL
+              } else {
+                imageUrl = `${url}/images/${item.image}`; // filename → full URL
+              }
+            }
 
             return (
               <FoodItem
