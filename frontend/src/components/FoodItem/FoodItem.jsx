@@ -4,25 +4,20 @@ import { assets } from '../../assets/assets';
 import { StoreContext } from '../../Context/StoreContext';
 
 const FoodItem = ({ image, name, price, desc, id }) => {
-
-    const {
-        cartItems,
-        addToCart,
-        removeFromCart,
-        currency,
-        kitchenOpen // ✅ ADDED
-    } = useContext(StoreContext);
+    const { cartItems, addToCart, removeFromCart, currency } = useContext(StoreContext);
 
     // ✅ fallback image
     const fallbackImage = "https://dummyimage.com/300x200/cccccc/000000&text=No+Image";
 
-    // 🔥 handle add safely
-    const handleAddToCart = () => {
-        if (!kitchenOpen) {
-            alert("Kitchen is closed 🚫");
-            return;
-        }
-        addToCart(id);
+    // 🔥 FIX: handle both filename + full URL
+    const getImageUrl = () => {
+        if (!image) return fallbackImage;
+
+        // if already full URL
+        if (image.startsWith("http")) return image;
+
+        // if only filename
+        return `https://singhcafe.onrender.com/images/${image}`;
     };
 
     return (
@@ -30,7 +25,7 @@ const FoodItem = ({ image, name, price, desc, id }) => {
             <div className='food-item-img-container'>
                 <img
                     className='food-item-image'
-                    src={image || fallbackImage}
+                    src={getImageUrl()}
                     alt={name}
                     onError={(e) => {
                         e.target.onerror = null;
@@ -41,7 +36,7 @@ const FoodItem = ({ image, name, price, desc, id }) => {
                 {!cartItems?.[id] ? (
                     <img
                         className='add'
-                        onClick={handleAddToCart} // ✅ UPDATED
+                        onClick={() => addToCart(id)}
                         src={assets.add_icon_white}
                         alt="Add"
                     />
@@ -55,7 +50,7 @@ const FoodItem = ({ image, name, price, desc, id }) => {
                         <p>{cartItems?.[id]}</p>
                         <img
                             src={assets.add_icon_green}
-                            onClick={handleAddToCart} // ✅ UPDATED
+                            onClick={() => addToCart(id)}
                             alt="Add"
                         />
                     </div>
