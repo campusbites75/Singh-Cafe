@@ -125,19 +125,16 @@ const PlaceOrder = () => {
   const [paymentStatus, setPaymentStatus] = useState(null);
   const [currentOrderId, setCurrentOrderId] = useState(null);
 
-const context = useContext(StoreContext);
-
-const {
+ const {
   getTotalCartAmount,
   placeOrder,
   cartItems,
   food_list,
   token,
   deliveryFee,
-  discount
-} = context;
-
-const kitchenOpen = context?.kitchenOpen;
+  discount,
+  kitchenOpen   // ✅ ADDED
+} = useContext(StoreContext);
 
   const navigate = useNavigate();
   const pollingRef = useRef(null);
