@@ -1,7 +1,20 @@
 import { createContext, useEffect, useState } from "react";
 import { menu_list } from "../assets/assets";
 import axios from "axios";
-import { io } from "socket.io-client"; // ✅ NEW
+
+export const StoreContext = createContext(null);
+
+const StoreContextProvider = (props) => {
+  const url = "import { createContext, useEffect, useState } from "react";
+import { menu_list } from "../assets/assets";
+import axios from "axios";
+
+export const StoreContext = createContext(null);
+
+const StoreContextProvider = (props) => {
+  const url = "import { createContext, useEffect, useState } from "react";
+import { menu_list } from "../assets/assets";
+import axios from "axios";
 
 export const StoreContext = createContext(null);
 
@@ -12,6 +25,7 @@ const StoreContextProvider = (props) => {
   const [cartItems, setCartItems] = useState({});
   const [token, setToken] = useState(localStorage.getItem("token") || "");
 
+  // ✅ Improved: Load user directly from localStorage
   const [user, setUser] = useState(
     JSON.parse(localStorage.getItem("user")) || null
   );
@@ -21,8 +35,6 @@ const StoreContextProvider = (props) => {
   const [deliveryFee, setDeliveryFee] = useState(10);
   const [discount, setDiscount] = useState(0);
   const [couponCode, setCouponCode] = useState("");
-
-  const [kitchenOpen, setKitchenOpen] = useState(true); // ✅ NEW
 
   // ============================
   // AXIOS CONFIG
@@ -44,68 +56,37 @@ const StoreContextProvider = (props) => {
   }, []);
 
   // ===============================
-  // 🔥 FETCH SETTINGS (delivery + kitchen)
+  // FETCH DELIVERY FEE
   // ===============================
-  const fetchSettings = async () => {
+  const fetchDeliveryFee = async () => {
     try {
       const res = await axios.get("/api/settings");
-      if (res.data) {
-        if (res.data.deliveryFee !== undefined) {
-          setDeliveryFee(res.data.deliveryFee);
-        }
-        if (res.data.kitchenOpen !== undefined) {
-          setKitchenOpen(res.data.kitchenOpen);
-        }
+      if (
+        res.data?.deliveryFee !== undefined &&
+        res.data?.deliveryFee !== null
+      ) {
+        setDeliveryFee(res.data.deliveryFee);
       }
     } catch (err) {
-      console.error("Settings fetch error:", err);
+      console.error("Delivery fee fetch error:", err);
     }
   };
-
-  // ===============================
-  // 🔥 SOCKET LIVE SYNC
-  // ===============================
-  useEffect(() => {
-    const socket = io("https://singhcafe.onrender.com");
-
-    socket.on("kitchenStatusUpdated", (status) => {
-      console.log("⚡ Kitchen status updated:", status);
-      setKitchenOpen(status);
-    });
-
-    return () => socket.disconnect();
-  }, []);
 
   // ===============================
   // ADD TO CART
   // ===============================
   const addToCart = async (itemId) => {
+    const updatedCart = {
+      ...cartItems,
+      [itemId]: (cartItems[itemId] || 0) + 1,
+    };
 
-    // 🔥 BLOCK WHEN CLOSED
-    if (!kitchenOpen) {
-      alert("Kitchen is closed 🚫");
-      return;
-    }
-
-    setCartItems((prev) => {
-      const updated = {
-        ...prev,
-        [itemId]: (prev[itemId] || 0) + 1,
-      };
-
-      if (!token) {
-        localStorage.setItem("guestCart", JSON.stringify(updated));
-      }
-
-      return updated;
-    });
+    setCartItems(updatedCart);
 
     if (token) {
-      try {
-        await axios.post("/api/cart/add", { itemId });
-      } catch (err) {
-        console.error("Add to cart error:", err);
-      }
+      await axios.post("/api/cart/add", { itemId });
+    } else {
+      localStorage.setItem("guestCart", JSON.stringify(updatedCart));
     }
   };
 
@@ -113,28 +94,20 @@ const StoreContextProvider = (props) => {
   // REMOVE FROM CART
   // ===============================
   const removeFromCart = async (itemId) => {
-    setCartItems((prev) => {
-      const updated = { ...prev };
+    const updatedCart = { ...cartItems };
 
-      if (updated[itemId] > 1) {
-        updated[itemId] -= 1;
-      } else {
-        delete updated[itemId];
-      }
+    if (updatedCart[itemId] > 1) {
+      updatedCart[itemId] -= 1;
+    } else {
+      delete updatedCart[itemId];
+    }
 
-      if (!token) {
-        localStorage.setItem("guestCart", JSON.stringify(updated));
-      }
-
-      return updated;
-    });
+    setCartItems(updatedCart);
 
     if (token) {
-      try {
-        await axios.post("/api/cart/remove", { itemId });
-      } catch (err) {
-        console.error("Remove from cart error:", err);
-      }
+      await axios.post("/api/cart/remove", { itemId });
+    } else {
+      localStorage.setItem("guestCart", JSON.stringify(updatedCart));
     }
   };
 
@@ -158,9 +131,33 @@ const StoreContextProvider = (props) => {
   // FETCH FOOD
   // ===============================
   const fetchFoodList = async () => {
+  try {
     const response = await axios.get("/api/food/list");
-    setFoodList(response.data.data);
-  };
+
+    // 🔥 FIX: normalize image URLs here
+    const updatedData = response.data.data.map((item) => {
+      let imageUrl = item.image;
+
+      if (!imageUrl) {
+        imageUrl = null;
+      } else if (!imageUrl.startsWith("http")) {
+        imageUrl = `${url}/images/${imageUrl}`;
+      }
+
+      return {
+        ...item,
+        image: imageUrl,
+      };
+    });
+
+    console.log("FOOD DATA:", updatedData); // 🔍 debug
+
+    setFoodList(updatedData);
+
+  } catch (error) {
+    console.error("FETCH FOOD ERROR:", error);
+  }
+};
 
   // ===============================
   // PLACE ORDER
@@ -172,10 +169,6 @@ const StoreContextProvider = (props) => {
     items,
   }) => {
     try {
-      if (!kitchenOpen) {
-        return { success: false, message: "Kitchen is closed 🚫" };
-      }
-
       if (!items || items.length === 0) {
         return { success: false, message: "Cart is empty" };
       }
@@ -208,7 +201,8 @@ const StoreContextProvider = (props) => {
       console.error("Order error:", error.response?.data || error.message);
       return {
         success: false,
-        message: error.response?.data?.message || "Order failed",
+        message:
+          error.response?.data?.message || "Order failed",
       };
     }
   };
@@ -219,7 +213,7 @@ const StoreContextProvider = (props) => {
   useEffect(() => {
     async function loadData() {
       await fetchFoodList();
-      await fetchSettings(); // ✅ UPDATED
+      await fetchDeliveryFee();
 
       const storedToken = localStorage.getItem("token");
 
@@ -256,7 +250,486 @@ const StoreContextProvider = (props) => {
     setDiscount,
     couponCode,
     setCouponCode,
-    kitchenOpen // ✅ NEW (important)
+  };
+
+  return (
+    <StoreContext.Provider value={contextValue}>
+      {props.children}
+    </StoreContext.Provider>
+  );
+};
+
+export default StoreContextProvider;";
+
+  const [food_list, setFoodList] = useState([]);
+  const [cartItems, setCartItems] = useState({});
+  const [token, setToken] = useState(localStorage.getItem("token") || "");
+
+  // ✅ Improved: Load user directly from localStorage
+  const [user, setUser] = useState(
+    JSON.parse(localStorage.getItem("user")) || null
+  );
+
+  const currency = "₹";
+  const [searchQuery, setSearchQuery] = useState("");
+  const [deliveryFee, setDeliveryFee] = useState(10);
+  const [discount, setDiscount] = useState(0);
+  const [couponCode, setCouponCode] = useState("");
+
+  // ============================
+  // AXIOS CONFIG
+  // ============================
+  useEffect(() => {
+    axios.defaults.baseURL = url;
+
+    const interceptor = axios.interceptors.request.use((config) => {
+      const storedToken = localStorage.getItem("token");
+      if (storedToken) {
+        config.headers.Authorization = `Bearer ${storedToken}`;
+      }
+      return config;
+    });
+
+    return () => {
+      axios.interceptors.request.eject(interceptor);
+    };
+  }, []);
+
+  // ===============================
+  // FETCH DELIVERY FEE
+  // ===============================
+  const fetchDeliveryFee = async () => {
+    try {
+      const res = await axios.get("/api/settings");
+      if (
+        res.data?.deliveryFee !== undefined &&
+        res.data?.deliveryFee !== null
+      ) {
+        setDeliveryFee(res.data.deliveryFee);
+      }
+    } catch (err) {
+      console.error("Delivery fee fetch error:", err);
+    }
+  };
+
+  // ===============================
+  // ADD TO CART
+  // ===============================
+  const addToCart = async (itemId) => {
+    const updatedCart = {
+      ...cartItems,
+      [itemId]: (cartItems[itemId] || 0) + 1,
+    };
+
+    setCartItems(updatedCart);
+
+    if (token) {
+      await axios.post("/api/cart/add", { itemId });
+    } else {
+      localStorage.setItem("guestCart", JSON.stringify(updatedCart));
+    }
+  };
+
+  // ===============================
+  // REMOVE FROM CART
+  // ===============================
+  const removeFromCart = async (itemId) => {
+    const updatedCart = { ...cartItems };
+
+    if (updatedCart[itemId] > 1) {
+      updatedCart[itemId] -= 1;
+    } else {
+      delete updatedCart[itemId];
+    }
+
+    setCartItems(updatedCart);
+
+    if (token) {
+      await axios.post("/api/cart/remove", { itemId });
+    } else {
+      localStorage.setItem("guestCart", JSON.stringify(updatedCart));
+    }
+  };
+
+  // ===============================
+  // TOTAL CART
+  // ===============================
+  const getTotalCartAmount = () => {
+    let totalAmount = 0;
+
+    for (const item in cartItems) {
+      const itemInfo = food_list.find((p) => p._id === item);
+      if (itemInfo) {
+        totalAmount += itemInfo.price * cartItems[item];
+      }
+    }
+
+    return totalAmount;
+  };
+
+  // ===============================
+  // FETCH FOOD
+  // ===============================
+  const fetchFoodList = async () => {
+  try {
+    const response = await axios.get("/api/food/list");
+
+    // 🔥 FIX: normalize image URLs here
+    const updatedData = response.data.data.map((item) => {
+      let imageUrl = item.image;
+
+      if (!imageUrl) {
+        imageUrl = null;
+      } else if (!imageUrl.startsWith("http")) {
+        imageUrl = `${url}/images/${imageUrl}`;
+      }
+
+      return {
+        ...item,
+        image: imageUrl,
+      };
+    });
+
+    console.log("FOOD DATA:", updatedData); // 🔍 debug
+
+    setFoodList(updatedData);
+
+  } catch (error) {
+    console.error("FETCH FOOD ERROR:", error);
+  }
+};
+
+  // ===============================
+  // PLACE ORDER
+  // ===============================
+  const placeOrder = async ({
+    address,
+    paymentMethod,
+    couponCode,
+    items,
+  }) => {
+    try {
+      if (!items || items.length === 0) {
+        return { success: false, message: "Cart is empty" };
+      }
+
+      const subtotal = getTotalCartAmount();
+
+      const endpoint =
+        paymentMethod === "COD"
+          ? "/api/order/placecod"
+          : "/api/order/place";
+
+      const response = await axios.post(endpoint, {
+        items,
+        amount: subtotal - discount,
+        discount,
+        couponCode,
+        deliveryFee,
+        totalAmount: subtotal + deliveryFee - discount,
+        address,
+        paymentMethod,
+      });
+
+      if (response.data.success && paymentMethod === "COD") {
+        setCartItems({});
+        localStorage.removeItem("guestCart");
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error("Order error:", error.response?.data || error.message);
+      return {
+        success: false,
+        message:
+          error.response?.data?.message || "Order failed",
+      };
+    }
+  };
+
+  // ===============================
+  // INITIAL LOAD
+  // ===============================
+  useEffect(() => {
+    async function loadData() {
+      await fetchFoodList();
+      await fetchDeliveryFee();
+
+      const storedToken = localStorage.getItem("token");
+
+      if (storedToken) {
+        setToken(storedToken);
+      } else {
+        const guestCart =
+          JSON.parse(localStorage.getItem("guestCart")) || {};
+        setCartItems(guestCart);
+      }
+    }
+
+    loadData();
+  }, []);
+
+  const contextValue = {
+    url,
+    food_list,
+    menu_list,
+    cartItems,
+    addToCart,
+    removeFromCart,
+    getTotalCartAmount,
+    token,
+    setToken,
+    user,
+    setUser,
+    currency,
+    deliveryFee,
+    placeOrder,
+    searchQuery,
+    setSearchQuery,
+    discount,
+    setDiscount,
+    couponCode,
+    setCouponCode,
+  };
+
+  return (
+    <StoreContext.Provider value={contextValue}>
+      {props.children}
+    </StoreContext.Provider>
+  );
+};
+
+export default StoreContextProvider;";
+
+  const [food_list, setFoodList] = useState([]);
+  const [cartItems, setCartItems] = useState({});
+  const [token, setToken] = useState(localStorage.getItem("token") || "");
+
+  // ✅ Improved: Load user directly from localStorage
+  const [user, setUser] = useState(
+    JSON.parse(localStorage.getItem("user")) || null
+  );
+
+  const currency = "₹";
+  const [searchQuery, setSearchQuery] = useState("");
+  const [deliveryFee, setDeliveryFee] = useState(10);
+  const [discount, setDiscount] = useState(0);
+  const [couponCode, setCouponCode] = useState("");
+
+  // ============================
+  // AXIOS CONFIG
+  // ============================
+  useEffect(() => {
+    axios.defaults.baseURL = url;
+
+    const interceptor = axios.interceptors.request.use((config) => {
+      const storedToken = localStorage.getItem("token");
+      if (storedToken) {
+        config.headers.Authorization = `Bearer ${storedToken}`;
+      }
+      return config;
+    });
+
+    return () => {
+      axios.interceptors.request.eject(interceptor);
+    };
+  }, []);
+
+  // ===============================
+  // FETCH DELIVERY FEE
+  // ===============================
+  const fetchDeliveryFee = async () => {
+    try {
+      const res = await axios.get("/api/settings");
+      if (
+        res.data?.deliveryFee !== undefined &&
+        res.data?.deliveryFee !== null
+      ) {
+        setDeliveryFee(res.data.deliveryFee);
+      }
+    } catch (err) {
+      console.error("Delivery fee fetch error:", err);
+    }
+  };
+
+  // ===============================
+  // ADD TO CART
+  // ===============================
+  const addToCart = async (itemId) => {
+    const updatedCart = {
+      ...cartItems,
+      [itemId]: (cartItems[itemId] || 0) + 1,
+    };
+
+    setCartItems(updatedCart);
+
+    if (token) {
+      await axios.post("/api/cart/add", { itemId });
+    } else {
+      localStorage.setItem("guestCart", JSON.stringify(updatedCart));
+    }
+  };
+
+  // ===============================
+  // REMOVE FROM CART
+  // ===============================
+  const removeFromCart = async (itemId) => {
+    const updatedCart = { ...cartItems };
+
+    if (updatedCart[itemId] > 1) {
+      updatedCart[itemId] -= 1;
+    } else {
+      delete updatedCart[itemId];
+    }
+
+    setCartItems(updatedCart);
+
+    if (token) {
+      await axios.post("/api/cart/remove", { itemId });
+    } else {
+      localStorage.setItem("guestCart", JSON.stringify(updatedCart));
+    }
+  };
+
+  // ===============================
+  // TOTAL CART
+  // ===============================
+  const getTotalCartAmount = () => {
+    let totalAmount = 0;
+
+    for (const item in cartItems) {
+      const itemInfo = food_list.find((p) => p._id === item);
+      if (itemInfo) {
+        totalAmount += itemInfo.price * cartItems[item];
+      }
+    }
+
+    return totalAmount;
+  };
+
+  // ===============================
+  // FETCH FOOD
+  // ===============================
+  const fetchFoodList = async () => {
+  try {
+    const response = await axios.get("/api/food/list");
+
+    // 🔥 FIX: normalize image URLs here
+    const updatedData = response.data.data.map((item) => {
+      let imageUrl = item.image;
+
+      if (!imageUrl) {
+        imageUrl = null;
+      } else if (!imageUrl.startsWith("http")) {
+        imageUrl = `${url}/images/${imageUrl}`;
+      }
+
+      return {
+        ...item,
+        image: imageUrl,
+      };
+    });
+
+    console.log("FOOD DATA:", updatedData); // 🔍 debug
+
+    setFoodList(updatedData);
+
+  } catch (error) {
+    console.error("FETCH FOOD ERROR:", error);
+  }
+};
+
+  // ===============================
+  // PLACE ORDER
+  // ===============================
+  const placeOrder = async ({
+    address,
+    paymentMethod,
+    couponCode,
+    items,
+  }) => {
+    try {
+      if (!items || items.length === 0) {
+        return { success: false, message: "Cart is empty" };
+      }
+
+      const subtotal = getTotalCartAmount();
+
+      const endpoint =
+        paymentMethod === "COD"
+          ? "/api/order/placecod"
+          : "/api/order/place";
+
+      const response = await axios.post(endpoint, {
+        items,
+        amount: subtotal - discount,
+        discount,
+        couponCode,
+        deliveryFee,
+        totalAmount: subtotal + deliveryFee - discount,
+        address,
+        paymentMethod,
+      });
+
+      if (response.data.success && paymentMethod === "COD") {
+        setCartItems({});
+        localStorage.removeItem("guestCart");
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error("Order error:", error.response?.data || error.message);
+      return {
+        success: false,
+        message:
+          error.response?.data?.message || "Order failed",
+      };
+    }
+  };
+
+  // ===============================
+  // INITIAL LOAD
+  // ===============================
+  useEffect(() => {
+    async function loadData() {
+      await fetchFoodList();
+      await fetchDeliveryFee();
+
+      const storedToken = localStorage.getItem("token");
+
+      if (storedToken) {
+        setToken(storedToken);
+      } else {
+        const guestCart =
+          JSON.parse(localStorage.getItem("guestCart")) || {};
+        setCartItems(guestCart);
+      }
+    }
+
+    loadData();
+  }, []);
+
+  const contextValue = {
+    url,
+    food_list,
+    menu_list,
+    cartItems,
+    addToCart,
+    removeFromCart,
+    getTotalCartAmount,
+    token,
+    setToken,
+    user,
+    setUser,
+    currency,
+    deliveryFee,
+    placeOrder,
+    searchQuery,
+    setSearchQuery,
+    discount,
+    setDiscount,
+    couponCode,
+    setCouponCode,
   };
 
   return (
