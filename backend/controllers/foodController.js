@@ -20,7 +20,6 @@ const addFood = async (req, res) => {
       });
     }
 
-    // ✅ NORMALIZE TYPE
     const normalizedType =
       String(productType || "").trim().toLowerCase() === "packed"
         ? "Packed"
@@ -32,8 +31,9 @@ const addFood = async (req, res) => {
       price,
       category,
       productType: normalizedType,
-      image: req.file.filename, // store only filename
+      image: req.file.filename,
       isActive: true,
+      quantity: 0, // ✅ default quantity
     });
 
     await newFood.save();
@@ -71,7 +71,6 @@ const listFood = async (req, res) => {
         .sort({ createdAt: -1 });
     }
 
-    // 🔥 ADD FULL IMAGE URL HERE
     const updatedFoods = foods.map((item) => ({
       ...item._doc,
       image: item.image
@@ -179,6 +178,51 @@ const updateFood = async (req, res) => {
   }
 };
 
+/* ================= UPDATE QUANTITY ================= */
+const updateQuantity = async (req, res) => {
+  try {
+    const { id, quantity } = req.body;
+
+    if (quantity < 0) {
+      return res.json({
+        success: false,
+        message: "Quantity cannot be negative",
+      });
+    }
+
+    const food = await foodModel.findById(id);
+
+    if (!food) {
+      return res.json({
+        success: false,
+        message: "Food not found",
+      });
+    }
+
+    food.quantity = quantity;
+
+    // 🔥 Auto pause if out of stock
+    if (quantity === 0) {
+      food.isActive = false;
+    }
+
+    await food.save();
+
+    res.json({
+      success: true,
+      message: "Quantity updated successfully",
+      quantity: food.quantity,
+    });
+
+  } catch (error) {
+    console.error("UPDATE QUANTITY ERROR:", error);
+    res.json({
+      success: false,
+      message: "Error updating quantity",
+    });
+  }
+};
+
 /* ================= TOGGLE FOOD STATUS ================= */
 const toggleFoodStatus = async (req, res) => {
   try {
@@ -217,4 +261,5 @@ export {
   removeFood,
   updateFood,
   toggleFoodStatus,
+  updateQuantity, // ✅ NEW EXPORT
 };
