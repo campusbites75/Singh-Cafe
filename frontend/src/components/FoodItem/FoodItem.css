@@ -11,14 +11,15 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 170px;
+  min-height: 180px;
   position: relative;
+  overflow: hidden;
 }
 
 /* Premium hover */
 .food-item:hover {
   transform: translateY(-6px);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.12);
   border-color: #ffe5df;
 }
 
@@ -27,30 +28,30 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .food-item-header h3 {
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 600;
   color: #1f1f1f;
   letter-spacing: 0.3px;
 }
 
-/* Price (premium highlight) */
+/* Price (premium pill style) */
 .food-item-price {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
-  color: #d94f2b;
-  background: #fff3ef;
-  padding: 4px 10px;
-  border-radius: 12px;
+  color: #ff4c24;
+  background: linear-gradient(135deg, #fff1ec, #ffe5df);
+  padding: 5px 12px;
+  border-radius: 20px;
 }
 
 /* Description */
 .food-item-desc {
   color: #6b6b6b;
-  font-size: 14px;
+  font-size: 13.5px;
   margin: 10px 0 18px;
   line-height: 1.5;
 }
@@ -62,22 +63,25 @@
   align-items: center;
 }
 
-/* Add button (premium soft button) */
+/* Add button (premium gradient) */
 .add-btn {
   background: linear-gradient(135deg, #ff6a3d, #ff3d00);
   color: white;
   border: none;
-  padding: 7px 16px;
+  padding: 8px 18px;
   border-radius: 25px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 500;
   transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .add-btn:hover {
-  transform: scale(1.05);
-  box-shadow: 0 6px 14px rgba(255, 77, 45, 0.3);
+  transform: scale(1.06);
+  box-shadow: 0 8px 18px rgba(255, 77, 45, 0.35);
 }
 
 /* Counter */
@@ -86,13 +90,14 @@
   align-items: center;
   gap: 12px;
   background: #fafafa;
-  padding: 5px 12px;
+  padding: 6px 14px;
   border-radius: 25px;
   border: 1px solid #eee;
 }
 
+/* Counter buttons */
 .counter button {
-  background: #ff4c24;
+  background: linear-gradient(135deg, #ff6a3d, #ff3d00);
   color: white;
   border: none;
   width: 26px;
@@ -100,13 +105,15 @@
   border-radius: 50%;
   cursor: pointer;
   font-weight: bold;
-  transition: 0.2s;
+  transition: all 0.2s ease;
 }
 
 .counter button:hover {
-  background: #e84325;
+  transform: scale(1.1);
+  box-shadow: 0 4px 10px rgba(255, 77, 45, 0.3);
 }
 
+/* Quantity text */
 .counter span {
   font-size: 14px;
   font-weight: 500;
@@ -121,7 +128,22 @@
   left: 20px;
   right: 20px;
   height: 1px;
-  background: #f5f5f5;
+  background: linear-gradient(to right, transparent, #f2f2f2, transparent);
+}
+
+/* Soft glow effect on hover */
+.food-item::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  background: radial-gradient(circle at top left, rgba(255, 90, 31, 0.08), transparent 60%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.food-item:hover::before {
+  opacity: 1;
 }
 
 /* Fade animation */
